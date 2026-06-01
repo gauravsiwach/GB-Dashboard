@@ -5,16 +5,17 @@ import logging
 from typing import Optional
 from app.db import get_db
 from app.models import Flag, Market
-from app.schemas import FlagCreate, FlagUpdate, FlagResponse, FlagImportRequest, FlagImportResponse, ImportAllFlagsRequest, ImportAllFlagsResponse, UpdateFlagValueRequest, UpdateFlagValueResponse
+from app.schemas import FlagCreate, FlagUpdate, FlagResponse, FlagImportRequest, FlagImportResponse, ImportAllFlagsRequest, ImportAllFlagsResponse, UpdateFlagValueRequest, UpdateFlagValueResponse, RuleCreate, RuleUpdate, RuleResponse, RuleListResponse, RuleOperationResponse
 from app.services.growthbook_client import GrowthBookClient, GROWTHBOOK_PROJECT_ID
 from app.services.growthbook_error import GrowthBookError
+from app.services.rule_validator import RuleValidator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/flags", tags=["flags"])
 
 
 @router.get("", response_model=list[FlagResponse])
-async def get_flags(market_id: Optional[int] = Query(None), db: AsyncSession = Depends(get_db)):
+async def get_flags(market_id: Optional[int] = Query(None), environment: str = Query("dev"), db: AsyncSession = Depends(get_db)):
     try:
         query = select(Flag)
         
@@ -23,8 +24,57 @@ async def get_flags(market_id: Optional[int] = Query(None), db: AsyncSession = D
         
         result = await db.execute(query)
         flags = result.scalars().all()
-        logger.info(f"Retrieved {len(flags)} flags for market_id={market_id}")
-        return flags
+        
+        # Fetch rule counts from GrowthBook for each flag
+        gb_client = GrowthBookClient()
+        flags_with_rules = []
+        
+        for flag in flags:
+            try:
+                # Get feature from GrowthBook
+                feature_response = await gb_client.get_feature(flag.growthbook_feature_id)
+                feature = feature_response.get("feature", feature_response)
+                
+                # Extract rules from top-level of feature (GrowthBook stores rules at feature level)
+                rules = feature.get("rules", [])
+                
+                # Filter rules for the specified environment if they have environment restrictions
+                environment_rules = []
+                for rule in rules:
+                    rule_envs = rule.get("environments", [])
+                    # If rule has no environment restriction or includes the target environment
+                    if not rule_envs or environment in rule_envs or rule.get("allEnvironments", False):
+                        environment_rules.append(rule)
+                
+                rule_count = len(environment_rules)
+                
+                # Convert flag to dict and add rule_count
+                flag_dict = {
+                    "id": flag.id,
+                    "key": flag.key,
+                    "market_id": flag.market_id,
+                    "growthbook_feature_id": flag.growthbook_feature_id,
+                    "created_at": flag.created_at,
+                    "updated_at": flag.updated_at,
+                    "rule_count": rule_count
+                }
+                flags_with_rules.append(flag_dict)
+            except GrowthBookError as e:
+                # If GrowthBook fetch fails, include flag with rule_count = 0
+                logger.warning(f"Failed to fetch rules for flag {flag.growthbook_feature_id}: {e}")
+                flag_dict = {
+                    "id": flag.id,
+                    "key": flag.key,
+                    "market_id": flag.market_id,
+                    "growthbook_feature_id": flag.growthbook_feature_id,
+                    "created_at": flag.created_at,
+                    "updated_at": flag.updated_at,
+                    "rule_count": 0
+                }
+                flags_with_rules.append(flag_dict)
+        
+        logger.info(f"Retrieved {len(flags_with_rules)} flags for market_id={market_id} with rule counts")
+        return flags_with_rules
     except Exception as e:
         logger.error(f"Error retrieving flags: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -245,9 +295,9 @@ async def import_flag(request: FlagImportRequest, db: AsyncSession = Depends(get
 
 
 @router.get("/{flag_id}/gb-details")
-async def get_flag_gb_details(flag_id: int, db: AsyncSession = Depends(get_db)):
+async def get_flag_gb_details(flag_id: int, environment: str = Query("dev"), db: AsyncSession = Depends(get_db)):
     """
-    Get flag details from GrowthBook including environment-specific values.
+    Get flag details from GrowthBook including environment-specific values and rules.
     """
     try:
         # Get the flag from the database
@@ -263,10 +313,26 @@ async def get_flag_gb_details(flag_id: int, db: AsyncSession = Depends(get_db)):
         
         # Fetch feature from GrowthBook
         logger.info(f"Fetching feature {db_flag.growthbook_feature_id} from GrowthBook")
-        response = await gb_client.get_feature(db_flag.growthbook_feature_id)
+        feature_response = await gb_client.get_feature(db_flag.growthbook_feature_id)
+        feature = feature_response.get("feature", feature_response)
         
-        # Extract feature data
-        feature_data = response.get("feature", response)
+        # Extract rules from top-level of feature
+        all_rules = feature.get("rules", [])
+        logger.info(f"Total rules for flag {db_flag.growthbook_feature_id}: {len(all_rules)}")
+        
+        # Filter rules for the specified environment
+        environment_rules = []
+        for rule in all_rules:
+            rule_envs = rule.get("environments", [])
+            if not rule_envs or environment in rule_envs or rule.get("allEnvironments", False):
+                environment_rules.append(rule)
+        
+        logger.info(f"Environment-specific rules for {environment}: {len(environment_rules)}")
+        
+        # Extract environment data
+        env_data = {}
+        if "environments" in feature and environment in feature["environments"]:
+            env_data = feature["environments"][environment]
         
         return {
             "success": True,
@@ -276,9 +342,14 @@ async def get_flag_gb_details(flag_id: int, db: AsyncSession = Depends(get_db)):
                 "growthbook_feature_id": db_flag.growthbook_feature_id,
                 "market_id": db_flag.market_id
             },
-            "environments": feature_data.get("environments", {}),
-            "defaultValue": feature_data.get("defaultValue", "false"),
-            "valueType": feature_data.get("valueType", "boolean")
+            "environments": feature.get("environments", {}),
+            "defaultValue": feature.get("defaultValue", "false"),
+            "valueType": feature.get("valueType", "boolean"),
+            "environment": environment,
+            "enabled": env_data.get("enabled", False),
+            "default_value": env_data.get("defaultValue", "false"),
+            "rules": environment_rules,
+            "rule_count": len(environment_rules)
         }
     
     except GrowthBookError as e:
@@ -602,3 +673,169 @@ async def import_all_flags(request: ImportAllFlagsRequest, db: AsyncSession = De
             errors=[str(e)],
             dry_run=request.dry_run
         )
+
+
+# Rule Management Endpoints (POC - Phase 1)
+
+@router.post("/{flag_id}/rules")
+async def add_rule(flag_id: int, rule_data: dict, environment: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """
+    Add a rule to a flag in a specific environment.
+    Validates rule structure before sending to GrowthBook.
+    """
+    try:
+        # Validate rule structure
+        is_valid, error = RuleValidator.validate_rule(rule_data)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=f"Invalid rule: {error}")
+        
+        # Get the flag from database
+        result = await db.execute(select(Flag).where(Flag.id == flag_id))
+        db_flag = result.scalar_one_or_none()
+        
+        if not db_flag:
+            raise HTTPException(status_code=404, detail="Flag not found")
+        
+        # Initialize GrowthBook client
+        gb_client = GrowthBookClient()
+        
+        # Add rule to GrowthBook
+        logger.info(f"Adding rule to flag {db_flag.growthbook_feature_id} in environment {environment}")
+        response = await gb_client.add_rule(db_flag.growthbook_feature_id, environment, rule_data)
+        
+        return {
+            "success": True,
+            "message": "Rule added successfully",
+            "data": response
+        }
+    
+    except GrowthBookError as e:
+        logger.error(f"GrowthBook API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to add rule: {e.message}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding rule: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/{flag_id}/rules/{rule_index}")
+async def update_rule(flag_id: int, rule_index: int, rule_data: dict, environment: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """
+    Update an existing rule in a flag's environment.
+    Validates rule structure before sending to GrowthBook.
+    """
+    try:
+        # Validate rule structure
+        is_valid, error = RuleValidator.validate_rule(rule_data)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=f"Invalid rule: {error}")
+        
+        # Get the flag from database
+        result = await db.execute(select(Flag).where(Flag.id == flag_id))
+        db_flag = result.scalar_one_or_none()
+        
+        if not db_flag:
+            raise HTTPException(status_code=404, detail="Flag not found")
+        
+        # Initialize GrowthBook client
+        gb_client = GrowthBookClient()
+        
+        # Update rule in GrowthBook
+        logger.info(f"Updating rule {rule_index} in flag {db_flag.growthbook_feature_id} environment {environment}")
+        response = await gb_client.update_rule(db_flag.growthbook_feature_id, environment, rule_index, rule_data)
+        
+        return {
+            "success": True,
+            "message": "Rule updated successfully",
+            "data": response
+        }
+    
+    except GrowthBookError as e:
+        logger.error(f"GrowthBook API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update rule: {e.message}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating rule: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/{flag_id}/rules/{rule_index}")
+async def delete_rule(flag_id: int, rule_index: int, environment: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """
+    Delete a rule from a flag's environment.
+    """
+    try:
+        # Get the flag from database
+        result = await db.execute(select(Flag).where(Flag.id == flag_id))
+        db_flag = result.scalar_one_or_none()
+        
+        if not db_flag:
+            raise HTTPException(status_code=404, detail="Flag not found")
+        
+        # Initialize GrowthBook client
+        gb_client = GrowthBookClient()
+        
+        # Delete rule from GrowthBook
+        logger.info(f"Deleting rule {rule_index} from flag {db_flag.growthbook_feature_id} environment {environment}")
+        response = await gb_client.delete_rule(db_flag.growthbook_feature_id, environment, rule_index)
+        
+        return {
+            "success": True,
+            "message": "Rule deleted successfully",
+            "data": response
+        }
+    
+    except GrowthBookError as e:
+        logger.error(f"GrowthBook API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete rule: {e.message}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting rule: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{flag_id}/rules")
+async def get_rules(flag_id: int, environment: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """
+    Get all rules for a flag in a specific environment.
+    """
+    try:
+        # Get the flag from database
+        result = await db.execute(select(Flag).where(Flag.id == flag_id))
+        db_flag = result.scalar_one_or_none()
+        
+        if not db_flag:
+            raise HTTPException(status_code=404, detail="Flag not found")
+        
+        # Initialize GrowthBook client
+        gb_client = GrowthBookClient()
+        
+        # Get feature from GrowthBook
+        feature = await gb_client.get_feature(db_flag.growthbook_feature_id)
+        
+        # Extract rules for the specified environment
+        rules = []
+        if "environments" in feature and environment in feature["environments"]:
+            rules = feature["environments"][environment].get("rules", [])
+        
+        return {
+            "success": True,
+            "flag_id": flag_id,
+            "environment": environment,
+            "rules": rules,
+            "count": len(rules)
+        }
+    
+    except GrowthBookError as e:
+        logger.error(f"GrowthBook API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get rules: {e.message}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting rules: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+

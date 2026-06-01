@@ -9,7 +9,13 @@ from app.schemas.flag import (
     ImportAllFlagsRequest,
     ImportAllFlagsResponse,
     UpdateFlagValueRequest,
-    UpdateFlagValueResponse
+    UpdateFlagValueResponse,
+    RuleCondition,
+    RuleCreate,
+    RuleUpdate,
+    RuleResponse,
+    RuleListResponse,
+    RuleOperationResponse
 )
 from app.schemas.comparison import (
     ComparisonRequest,
@@ -36,6 +42,12 @@ __all__ = [
     "ImportAllFlagsResponse",
     "UpdateFlagValueRequest",
     "UpdateFlagValueResponse",
+    "RuleCondition",
+    "RuleCreate",
+    "RuleUpdate",
+    "RuleResponse",
+    "RuleListResponse",
+    "RuleOperationResponse",
     "ComparisonRequest",
     "ComparisonResponse",
     "ComparisonStatus",

@@ -25,6 +25,7 @@ class FlagResponse(BaseModel):
     growthbook_feature_id: str
     created_at: datetime
     updated_at: datetime
+    rule_count: int = 0
 
     class Config:
         from_attributes = True
@@ -85,3 +86,55 @@ class UpdateFlagValueResponse(BaseModel):
     success: bool
     message: str
     error: Optional[str] = None
+
+
+# Rule Management Schemas (POC - Phase 1)
+
+class RuleCondition(BaseModel):
+    """Schema for a single rule condition."""
+    attribute: str
+    operator: str
+    value: str
+
+
+class RuleCreate(BaseModel):
+    """Schema for creating a new rule."""
+    conditions: Optional[List[RuleCondition]] = None
+    rolloutPercentage: Optional[float] = None
+    value: Optional[str] = None
+    enabled: Optional[bool] = True
+    description: Optional[str] = None
+
+
+class RuleUpdate(BaseModel):
+    """Schema for updating an existing rule."""
+    conditions: Optional[List[RuleCondition]] = None
+    rolloutPercentage: Optional[float] = None
+    value: Optional[str] = None
+    enabled: Optional[bool] = None
+    description: Optional[str] = None
+
+
+class RuleResponse(BaseModel):
+    """Schema for rule response."""
+    conditions: Optional[List[RuleCondition]] = None
+    rolloutPercentage: Optional[float] = None
+    value: Optional[str] = None
+    enabled: Optional[bool] = None
+    description: Optional[str] = None
+
+
+class RuleListResponse(BaseModel):
+    """Schema for list of rules response."""
+    success: bool
+    flag_id: int
+    environment: str
+    rules: List[RuleResponse] = []
+    count: int = 0
+
+
+class RuleOperationResponse(BaseModel):
+    """Schema for rule operation (add/update/delete) response."""
+    success: bool
+    message: str
+    data: Optional[dict] = None

@@ -24,25 +24,32 @@ const EditFlagModal = ({ isOpen, onClose, flag, selectedMarket, onSuccess, onErr
         setFetchingDetails(true);
         setError('');
         
+        // Set initial environment before fetching
+        const firstEnv = environments[0];
+        setEnvironment(firstEnv);
+        
+        console.log('Fetching flag details for flag:', flag);
+        console.log('Fetching from URL:', `http://localhost:8000/api/v1/flags/${flag.id}/gb-details?environment=${firstEnv}`);
+        
         try {
-          const response = await fetch(`http://localhost:8000/api/v1/flags/${flag.id}/gb-details`);
+          const response = await fetch(`http://localhost:8000/api/v1/flags/${flag.id}/gb-details?environment=${firstEnv}`);
+          
+          console.log('Response status:', response.status);
           
           if (!response.ok) {
             throw new Error('Failed to fetch flag details');
           }
           
           const data = await response.json();
+          console.log('Flag details response:', data);
           setFlagDetails(data);
-          
-          // Set initial environment
-          const firstEnv = environments[0];
-          setEnvironment(firstEnv);
           
           // Set values for first environment
           const envConfig = data.environments[firstEnv] || {};
           setEnabled(envConfig.enabled || false);
           setDefaultValue(envConfig.defaultValue || data.defaultValue || 'false');
         } catch (err) {
+          console.error('Error fetching flag details:', err);
           setError(`Error fetching flag details: ${err.message}`);
           // Set defaults on error
           setEnvironment(environments[0]);
@@ -65,6 +72,25 @@ const EditFlagModal = ({ isOpen, onClose, flag, selectedMarket, onSuccess, onErr
       setDefaultValue(envConfig.defaultValue || flagDetails.defaultValue || 'false');
     }
   }, [environment, flagDetails]);
+
+  // Fetch rules when environment changes
+  useEffect(() => {
+    const fetchRulesForEnvironment = async () => {
+      if (flag && environment) {
+        try {
+          const response = await fetch(`http://localhost:8000/api/v1/flags/${flag.id}/gb-details?environment=${environment}`);
+          if (response.ok) {
+            const data = await response.json();
+            setFlagDetails(data);
+          }
+        } catch (err) {
+          console.error('Error fetching rules for environment:', err);
+        }
+      }
+    };
+    
+    fetchRulesForEnvironment();
+  }, [environment]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -199,6 +225,32 @@ const EditFlagModal = ({ isOpen, onClose, flag, selectedMarket, onSuccess, onErr
                   value={defaultValue}
                   onChange={(e) => setDefaultValue(e.target.value)}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Rules ({flagDetails?.rules?.length || 0}):</label>
+                {flagDetails?.rules && flagDetails.rules.length > 0 ? (
+                  <div className="rules-display">
+                    {flagDetails.rules.map((rule, index) => (
+                      <div key={index} className="rule-item">
+                        <div className="rule-header">
+                          <strong>Rule {index + 1}</strong>
+                          <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
+                            {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
+                          </span>
+                        </div>
+                        <div className="rule-details">
+                          <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
+                          <div><strong>Condition:</strong> {rule.condition ? rule.condition : 'N/A'}</div>
+                          <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
+                          {rule.description && <div><strong>Description:</strong> {rule.description}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="no-rules">No rules configured for this environment</div>
+                )}
               </div>
 
               {error && <div className="error">{error}</div>}

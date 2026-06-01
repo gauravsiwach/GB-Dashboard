@@ -13,6 +13,7 @@ const FlagInventory = ({ flags, onEditFlag }) => {
           <tr>
             <th>Flag Key</th>
             <th>GrowthBook Feature ID</th>
+            <th>Rules</th>
             <th>Updated At</th>
             <th>Actions</th>
           </tr>
@@ -22,6 +23,12 @@ const FlagInventory = ({ flags, onEditFlag }) => {
             <tr key={flag.id}>
               <td>{flag.key}</td>
               <td>{flag.growthbook_feature_id}</td>
+              <td className="rules-cell">
+                <span className="rule-count">{flag.rule_count !== undefined ? flag.rule_count : '-'}</span>
+                {flag.rule_count > 0 && (
+                  <span className="rule-indicator" title={`${flag.rule_count} rule(s) configured`}>⚙️</span>
+                )}
+              </td>
               <td>{new Date(flag.updated_at).toLocaleString()}</td>
               <td>
                 <button onClick={() => onEditFlag(flag)}>Edit</button>

@@ -246,3 +246,73 @@ class GrowthBookClient:
     async def delete_feature(self, feature_id: str) -> Dict[str, Any]:
         """Delete a feature from GrowthBook."""
         return await self._request("DELETE", f"/api/features/{feature_id}")
+    
+    async def add_rule(self, feature_id: str, environment: str, rule_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add a rule to a feature in a specific environment."""
+        # Get current feature state
+        current_feature = await self._request("GET", f"/v2/features/{feature_id}")
+        
+        # Ensure environment exists
+        if "environments" not in current_feature:
+            current_feature["environments"] = {}
+        if environment not in current_feature["environments"]:
+            current_feature["environments"][environment] = {}
+        if "rules" not in current_feature["environments"][environment]:
+            current_feature["environments"][environment]["rules"] = []
+        
+        # Add new rule
+        current_feature["environments"][environment]["rules"].append(rule_data)
+        
+        # Update feature with new rule
+        logger.info(f"Adding rule to feature {feature_id} in environment {environment}")
+        response = await self._request("POST", f"/v2/features/{feature_id}", current_feature)
+        logger.info(f"Rule added successfully")
+        return response
+    
+    async def update_rule(self, feature_id: str, environment: str, rule_index: int, rule_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing rule in a feature's environment."""
+        # Get current feature state
+        current_feature = await self._request("GET", f"/v2/features/{feature_id}")
+        
+        # Ensure environment and rules exist
+        if "environments" not in current_feature:
+            raise GrowthBookError(message=f"Environment {environment} not found in feature")
+        if environment not in current_feature["environments"]:
+            raise GrowthBookError(message=f"Environment {environment} not found in feature")
+        if "rules" not in current_feature["environments"][environment]:
+            raise GrowthBookError(message=f"No rules found in environment {environment}")
+        if rule_index >= len(current_feature["environments"][environment]["rules"]):
+            raise GrowthBookError(message=f"Rule index {rule_index} out of bounds")
+        
+        # Update rule at specified index
+        current_feature["environments"][environment]["rules"][rule_index] = rule_data
+        
+        # Update feature with modified rule
+        logger.info(f"Updating rule {rule_index} in feature {feature_id} environment {environment}")
+        response = await self._request("POST", f"/v2/features/{feature_id}", current_feature)
+        logger.info(f"Rule updated successfully")
+        return response
+    
+    async def delete_rule(self, feature_id: str, environment: str, rule_index: int) -> Dict[str, Any]:
+        """Delete a rule from a feature's environment."""
+        # Get current feature state
+        current_feature = await self._request("GET", f"/v2/features/{feature_id}")
+        
+        # Ensure environment and rules exist
+        if "environments" not in current_feature:
+            raise GrowthBookError(message=f"Environment {environment} not found in feature")
+        if environment not in current_feature["environments"]:
+            raise GrowthBookError(message=f"Environment {environment} not found in feature")
+        if "rules" not in current_feature["environments"][environment]:
+            raise GrowthBookError(message=f"No rules found in environment {environment}")
+        if rule_index >= len(current_feature["environments"][environment]["rules"]):
+            raise GrowthBookError(message=f"Rule index {rule_index} out of bounds")
+        
+        # Delete rule at specified index
+        del current_feature["environments"][environment]["rules"][rule_index]
+        
+        # Update feature without the deleted rule
+        logger.info(f"Deleting rule {rule_index} from feature {feature_id} environment {environment}")
+        response = await self._request("POST", f"/v2/features/{feature_id}", current_feature)
+        logger.info(f"Rule deleted successfully")
+        return response
