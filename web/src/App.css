@@ -759,6 +759,51 @@ section {
   overflow: visible !important;
 }
 
+/* Search Input Styles (Phase 3) */
+.search-container {
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Loading State Styles */
+.flag-inventory.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  font-size: 1.5rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .rule-count {
   font-weight: bold;
   color: #333;
@@ -969,6 +1014,23 @@ section {
 
 .rules-cell.clickable:hover {
   background-color: #e8f5e9;
+}
+
+.rules-icon-button {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.rules-icon-button:hover {
+  background-color: #f5f5f5;
+  border-color: #999;
+  color: #000;
 }
 
 .condition-cell {

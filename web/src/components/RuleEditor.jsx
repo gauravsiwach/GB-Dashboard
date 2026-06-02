@@ -117,7 +117,7 @@ const RuleEditor = ({ rules, onRulesChange, environment, flagId }) => {
             style={{ width: '100%', minHeight: '200px' }}
           />
           
-          <button onClick={handleAddRule} className="add-rule-button">
+          <button type="button" onClick={handleAddRule} className="add-rule-button">
             + Add Rule
           </button>
           

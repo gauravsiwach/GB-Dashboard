@@ -368,52 +368,26 @@ const ComparisonView = ({ selectedMarket }) => {
                   </td>
                   <td>
                     {comparison.source_rules && comparison.source_rules.length > 0 ? (
-                      <div 
-                        className="rules-cell clickable"
+                      <button 
+                        className="rules-icon-button"
                         onClick={() => handleRulesClick(comparison.source_rules, 'Source Rules')}
+                        title={`View ${comparison.source_rules.length} rule(s)`}
                       >
-                        {comparison.source_rules.filter(rule => rule.condition).map((rule, idx) => (
-                          <div key={idx} className="rule-item">
-                            <div className="rule-header">
-                              <strong>Rule {idx + 1}</strong>
-                              <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
-                                {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
-                              </span>
-                            </div>
-                            <div className="rule-details">
-                              <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
-                              <div><strong>Condition:</strong> {rule.condition || 'N/A'}</div>
-                              <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                        ⚙️ {comparison.source_rules.length}
+                      </button>
                     ) : (
                       <span className="no-rules">-</span>
                     )}
                   </td>
                   <td>
                     {comparison.target_rules && comparison.target_rules.length > 0 ? (
-                      <div 
-                        className="rules-cell clickable"
+                      <button 
+                        className="rules-icon-button"
                         onClick={() => handleRulesClick(comparison.target_rules, 'Target Rules')}
+                        title={`View ${comparison.target_rules.length} rule(s)`}
                       >
-                        {comparison.target_rules.filter(rule => rule.condition).map((rule, idx) => (
-                          <div key={idx} className="rule-item">
-                            <div className="rule-header">
-                              <strong>Rule {idx + 1}</strong>
-                              <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
-                                {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
-                              </span>
-                            </div>
-                            <div className="rule-details">
-                              <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
-                              <div><strong>Condition:</strong> {rule.condition || 'N/A'}</div>
-                              <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                        ⚙️ {comparison.target_rules.length}
+                      </button>
                     ) : (
                       <span className="no-rules">-</span>
                     )}

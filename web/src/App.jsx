@@ -23,6 +23,7 @@ function App() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedFlag, setSelectedFlag] = useState(null);
   const [toast, setToast] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -36,12 +37,16 @@ function App() {
     if (selectedMarketId) {
       const market = markets.find(m => m.id === parseInt(selectedMarketId));
       setSelectedMarket(market);
-      fetchFlags(selectedMarketId);
+      fetchFlags(selectedMarketId, searchTerm);
     } else {
       setSelectedMarket(null);
       setFlags([]);
     }
-  }, [selectedMarketId, markets]);
+  }, [selectedMarketId, searchTerm]);
+
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+  };
 
   const fetchMarkets = async () => {
     setLoading(true);
@@ -63,11 +68,15 @@ function App() {
     }
   };
 
-  const fetchFlags = async (marketId) => {
+  const fetchFlags = async (marketId, search = '') => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/flags?market_id=${marketId}`);
+      let url = `http://localhost:8000/api/v1/flags?market_id=${marketId}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch flags');
       const data = await response.json();
       setFlags(data);
@@ -222,6 +231,8 @@ function App() {
                 <FlagInventory
                   flags={flags}
                   onEditFlag={handleEditFlag}
+                  onSearch={handleSearch}
+                  loading={loading}
                 />
               </section>
             )}

@@ -58,27 +58,30 @@ Integrate rules into comparison/promotion and add rule editing UI.
 
 ---
 
-## Phase 3: Advanced Rule UI + Testing
+## Phase 3: Search & Condition Filtering
 
 ### Objective
-Polish rule UI and test end-to-end functionality.
+Add search functionality to find flags by name or condition, and filter comparisons by specific conditions.
+
+### Backend Tasks
+1. **Search Endpoint Enhancement** - Add `search` query parameter to GET /flags
+2. **Name Search** - Filter flags by key/name
+3. **Condition Search** - Parse rule conditions and filter by attribute/value
+4. **Comparison Filtering** - Add `condition_filter` parameter to comparison endpoint
+5. **Condition Parser** - Parse rule conditions for filtering
 
 ### Frontend Tasks
-1. **JSON Syntax Highlighting** - Optional syntax highlighting for rule editor
-2. **Rule Templates** - Show rule templates/examples
-3. **Expand/Collapse Details** - Add expand/collapse for rule details
-4. **Highlight Changes** - Highlight rule changes in red/green
-5. **Edit Rules Button** - Add dedicated "Edit Rules" button
-
-### Tasks
-1. **Manual Testing** - End-to-end rule management flows
-2. **Documentation** - Update README with rule management instructions
+1. **Search Input** - Add search box to flag inventory
+2. **Real-time Filtering** - Filter flags as user types
+3. **Condition Filter UI** - Add condition selector to comparison view
+4. **Search Results Display** - Show filtered results with highlighting
 
 ### Acceptance Criteria
-- [ ] All user flows work end-to-end
-- [ ] Rule templates display correctly
-- [ ] UI looks presentable
-- [ ] Documentation updated
+- [ ] Can search flags by name/key
+- [ ] Can search flags by condition (e.g., country=IN)
+- [ ] Comparison can be filtered by specific condition
+- [ ] Search results display in real-time
+- [ ] UI shows search/filter options clearly
 
 ---
 
@@ -86,4 +89,4 @@ Polish rule UI and test end-to-end functionality.
 Phase 1 → Phase 2 → Phase 3
 
 ## Timeline Estimate
-Total: 3-5 days
+Total: 3-4 days
