@@ -13,6 +13,66 @@ const ComparisonView = ({ selectedMarket }) => {
   const [promotionResults, setPromotionResults] = useState(null);
   const [selectedFlags, setSelectedFlags] = useState(new Set());
   const [valuePopup, setValuePopup] = useState({ show: false, value: null, title: '' });
+  const [conditionFilter, setConditionFilter] = useState('');
+
+  // Function to highlight matching text
+  const highlightText = (text, searchTerm) => {
+    if (!searchTerm || !text) return text;
+    
+    try {
+      let displayText = text;
+      
+      // Try to parse as JSON if it looks like a JSON string
+      let parsedObj = null;
+      try {
+        parsedObj = JSON.parse(text);
+        if (typeof parsedObj === 'object') {
+          displayText = JSON.stringify(parsedObj, null, 2);
+        }
+      } catch (e) {
+        // Not JSON, use as-is
+      }
+      
+      // Parse the search term to extract attribute and value
+      const parts = searchTerm.split('=');
+      const attribute = parts[0]?.trim();
+      const value = parts[1]?.trim();
+      
+      // Only highlight if both attribute and value are present in the JSON object
+      if (attribute && value && parsedObj && typeof parsedObj === 'object') {
+        const hasAttribute = Object.keys(parsedObj).some(key => 
+          key.toLowerCase() === attribute.toLowerCase()
+        );
+        const hasValue = Object.values(parsedObj).some(val => 
+          String(val).toLowerCase() === value.toLowerCase()
+        );
+        
+        // Only highlight if both attribute and value are found in the same object
+        if (hasAttribute && hasValue) {
+          let highlightedText = displayText;
+          
+          const attrRegex = new RegExp(`(${attribute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+          highlightedText = highlightedText.split(attrRegex).map((part, index) => 
+            attrRegex.test(part) ? <span key={`attr-${index}`} className="search-highlight">{part}</span> : part
+          );
+          
+          const valRegex = new RegExp(`(${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+          highlightedText = Array.isArray(highlightedText) ? highlightedText.map((part, index) => 
+            typeof part === 'string' && valRegex.test(part) ? 
+              part.split(valRegex).map((subPart, subIndex) => 
+                valRegex.test(subPart) ? <span key={`val-${index}-${subIndex}`} className="search-highlight">{subPart}</span> : subPart
+              ) : part
+          ) : highlightedText;
+          
+          return highlightedText;
+        }
+      }
+      
+      return displayText;
+    } catch (error) {
+      return text;
+    }
+  };
 
   // Initialize environments based on env flow when market changes
   useEffect(() => {
@@ -59,6 +119,7 @@ const ComparisonView = ({ selectedMarket }) => {
           source_environment: sourceEnv,
           target_environment: targetEnv,
           market_id: selectedMarket ? selectedMarket.id : 1,
+          condition_filter: conditionFilter || undefined,
         }),
       });
 
@@ -238,6 +299,17 @@ const ComparisonView = ({ selectedMarket }) => {
             <option value="pre-prod">Pre-Prod</option>
             <option value="production">Production</option>
           </select>
+        </div>
+
+        <div className="control-group">
+          <label htmlFor="condition-filter">Condition Filter (optional):</label>
+          <input
+            id="condition-filter"
+            type="text"
+            value={conditionFilter}
+            onChange={(e) => setConditionFilter(e.target.value)}
+            placeholder="e.g., country=IN"
+          />
         </div>
 
         <button
@@ -449,7 +521,7 @@ const ComparisonView = ({ selectedMarket }) => {
                       </div>
                       <div className="rule-details">
                         <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
-                        <div><strong>Condition:</strong> {rule.condition || 'N/A'}</div>
+                        <div><strong>Condition:</strong> {highlightText(rule.condition || 'N/A', conditionFilter)}</div>
                         <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
                       </div>
                     </div>

@@ -31,6 +31,7 @@ class ComparisonRequest(BaseModel):
     source_environment: str
     target_environment: str
     market_id: int
+    condition_filter: Optional[str] = None
 
 
 class ComparisonResponse(BaseModel):

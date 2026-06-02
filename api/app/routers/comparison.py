@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 import logging
-from app.schemas import ComparisonRequest, ComparisonResponse
+from app.schemas import ComparisonRequest, ComparisonResponse, FlagComparison
 from app.services.comparison_service import ComparisonService
 from app.services.growthbook_error import GrowthBookError
+from app.services.condition_parser import ConditionParser
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/compare", tags=["comparison"])
@@ -21,6 +22,8 @@ async def compare_environments(request: ComparisonRequest):
     """
     try:
         logger.info(f"Comparing environments: {request.source_environment} -> {request.target_environment}")
+        if request.condition_filter:
+            logger.info(f"Filtering by condition: {request.condition_filter}")
         
         # Initialize comparison service
         comparison_service = ComparisonService()
@@ -30,6 +33,35 @@ async def compare_environments(request: ComparisonRequest):
             source_environment=request.source_environment,
             target_environment=request.target_environment
         )
+        
+        # Apply condition filter if provided
+        if request.condition_filter:
+            # Convert FlagComparison objects to dictionaries for ConditionParser
+            comparisons_dict = [comp.model_dump() for comp in comparisons]
+            # For comparison objects, check both source_rules and target_rules
+            parsed_condition = ConditionParser.parse_condition_string(request.condition_filter)
+            
+            if parsed_condition and parsed_condition.get('attribute'):
+                filtered_comparisons = []
+                for comp in comparisons_dict:
+                    # Check source rules
+                    source_rules = comp.get('source_rules', [])
+                    source_conditions = ConditionParser.extract_conditions_from_rules(source_rules)
+                    source_match = ConditionParser.matches_condition(parsed_condition, source_conditions)
+                    
+                    # Check target rules
+                    target_rules = comp.get('target_rules', [])
+                    target_conditions = ConditionParser.extract_conditions_from_rules(target_rules)
+                    target_match = ConditionParser.matches_condition(parsed_condition, target_conditions)
+                    
+                    # Include if condition matches in either source or target
+                    if source_match or target_match:
+                        filtered_comparisons.append(comp)
+                
+                comparisons_dict = filtered_comparisons
+            
+            # Convert back to FlagComparison objects
+            comparisons = [FlagComparison(**comp) for comp in comparisons_dict]
         
         # Calculate statistics
         total_flags = len(comparisons)
