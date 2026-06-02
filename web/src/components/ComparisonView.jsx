@@ -12,6 +12,7 @@ const ComparisonView = ({ selectedMarket }) => {
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
   const [promotionResults, setPromotionResults] = useState(null);
   const [selectedFlags, setSelectedFlags] = useState(new Set());
+  const [valuePopup, setValuePopup] = useState({ show: false, value: null, title: '' });
 
   // Initialize environments based on env flow when market changes
   useEffect(() => {
@@ -187,6 +188,23 @@ const ComparisonView = ({ selectedMarket }) => {
     }
   };
 
+  const handleValueClick = (value, title) => {
+    setValuePopup({ show: true, value, title, type: 'value' });
+  };
+
+  const handleRulesClick = (rules, title) => {
+    setValuePopup({ show: true, value: rules, title, type: 'rules' });
+  };
+
+  const truncateValue = (value) => {
+    if (!value) return '-';
+    const strValue = String(value);
+    if (strValue.length > 20) {
+      return strValue.substring(0, 20) + '...';
+    }
+    return strValue;
+  };
+
   return (
     <div className="comparison-view">
       <h2>Environment Comparison</h2>
@@ -296,6 +314,8 @@ const ComparisonView = ({ selectedMarket }) => {
                 <th>Target Value</th>
                 <th>Source Enabled</th>
                 <th>Target Enabled</th>
+                <th>Source Rules</th>
+                <th>Target Rules</th>
                 <th>Draft</th>
               </tr>
             </thead>
@@ -320,8 +340,22 @@ const ComparisonView = ({ selectedMarket }) => {
                       {getStatusLabel(comparison.status)}
                     </span>
                   </td>
-                  <td>{comparison.source_value || '-'}</td>
-                  <td>{comparison.target_value || '-'}</td>
+                  <td>
+                    <button 
+                      className="value-button"
+                      onClick={() => handleValueClick(comparison.source_value, 'Source Value')}
+                    >
+                      {truncateValue(comparison.source_value)}
+                    </button>
+                  </td>
+                  <td>
+                    <button 
+                      className="value-button"
+                      onClick={() => handleValueClick(comparison.target_value, 'Target Value')}
+                    >
+                      {truncateValue(comparison.target_value)}
+                    </button>
+                  </td>
                   <td>
                     <span className={`enabled-badge ${comparison.source_enabled ? 'enabled' : 'disabled'}`}>
                       {comparison.source_enabled ? '✓ Enabled' : '✕ Disabled'}
@@ -331,6 +365,58 @@ const ComparisonView = ({ selectedMarket }) => {
                     <span className={`enabled-badge ${comparison.target_enabled ? 'enabled' : 'disabled'}`}>
                       {comparison.target_enabled ? '✓ Enabled' : '✕ Disabled'}
                     </span>
+                  </td>
+                  <td>
+                    {comparison.source_rules && comparison.source_rules.length > 0 ? (
+                      <div 
+                        className="rules-cell clickable"
+                        onClick={() => handleRulesClick(comparison.source_rules, 'Source Rules')}
+                      >
+                        {comparison.source_rules.filter(rule => rule.condition).map((rule, idx) => (
+                          <div key={idx} className="rule-item">
+                            <div className="rule-header">
+                              <strong>Rule {idx + 1}</strong>
+                              <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
+                                {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
+                              </span>
+                            </div>
+                            <div className="rule-details">
+                              <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
+                              <div><strong>Condition:</strong> {rule.condition || 'N/A'}</div>
+                              <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="no-rules">-</span>
+                    )}
+                  </td>
+                  <td>
+                    {comparison.target_rules && comparison.target_rules.length > 0 ? (
+                      <div 
+                        className="rules-cell clickable"
+                        onClick={() => handleRulesClick(comparison.target_rules, 'Target Rules')}
+                      >
+                        {comparison.target_rules.filter(rule => rule.condition).map((rule, idx) => (
+                          <div key={idx} className="rule-item">
+                            <div className="rule-header">
+                              <strong>Rule {idx + 1}</strong>
+                              <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
+                                {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
+                              </span>
+                            </div>
+                            <div className="rule-details">
+                              <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
+                              <div><strong>Condition:</strong> {rule.condition || 'N/A'}</div>
+                              <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="no-rules">-</span>
+                    )}
                   </td>
                   <td>
                     <span className={`draft-badge ${comparison.draft ? 'draft' : 'published'}`}>
@@ -363,6 +449,45 @@ const ComparisonView = ({ selectedMarket }) => {
         targetEnv={targetEnv}
         flagCount={selectedFlags.size}
       />
+
+      {valuePopup.show && (
+        <div className="value-popup-overlay" onClick={() => setValuePopup({ show: false, value: null, title: '', type: '' })}>
+          <div className="value-popup-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="value-popup-header">
+              <h3>{valuePopup.title}</h3>
+              <button 
+                className="value-popup-close"
+                onClick={() => setValuePopup({ show: false, value: null, title: '', type: '' })}
+              >
+                ×
+              </button>
+            </div>
+            <div className="value-popup-content">
+              {valuePopup.type === 'rules' ? (
+                <div className="rules-popup-display">
+                  {valuePopup.value.filter(rule => rule.condition).map((rule, idx) => (
+                    <div key={idx} className="rule-item">
+                      <div className="rule-header">
+                        <strong>Rule {idx + 1}</strong>
+                        <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
+                          {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
+                        </span>
+                      </div>
+                      <div className="rule-details">
+                        <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
+                        <div><strong>Condition:</strong> {rule.condition || 'N/A'}</div>
+                        <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <pre>{JSON.stringify(valuePopup.value, null, 2)}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

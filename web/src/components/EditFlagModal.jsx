@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import RuleEditor from './RuleEditor';
 
 const EditFlagModal = ({ isOpen, onClose, flag, selectedMarket, onSuccess, onError }) => {
   const [environment, setEnvironment] = useState('dev');
@@ -227,31 +228,14 @@ const EditFlagModal = ({ isOpen, onClose, flag, selectedMarket, onSuccess, onErr
                 />
               </div>
 
-              <div className="form-group">
-                <label>Rules ({flagDetails?.rules?.length || 0}):</label>
-                {flagDetails?.rules && flagDetails.rules.length > 0 ? (
-                  <div className="rules-display">
-                    {flagDetails.rules.map((rule, index) => (
-                      <div key={index} className="rule-item">
-                        <div className="rule-header">
-                          <strong>Rule {index + 1}</strong>
-                          <span className={`rule-status ${rule.enabled ? 'enabled' : 'disabled'}`}>
-                            {rule.enabled ? '✓ Enabled' : '✗ Disabled'}
-                          </span>
-                        </div>
-                        <div className="rule-details">
-                          <div><strong>Type:</strong> {rule.type || 'N/A'}</div>
-                          <div><strong>Condition:</strong> {rule.condition ? rule.condition : 'N/A'}</div>
-                          <div><strong>Value:</strong> {rule.value || 'N/A'}</div>
-                          {rule.description && <div><strong>Description:</strong> {rule.description}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="no-rules">No rules configured for this environment</div>
-                )}
-              </div>
+              <RuleEditor
+                rules={flagDetails?.rules || []}
+                environment={environment}
+                flagId={flag?.id}
+                onRulesChange={(newRules) => {
+                  setFlagDetails({ ...flagDetails, rules: newRules });
+                }}
+              />
 
               {error && <div className="error">{error}</div>}
 

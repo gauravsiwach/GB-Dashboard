@@ -63,6 +63,11 @@ class ComparisonService:
                 source_env_config = environments.get(source_environment)
                 target_env_config = environments.get(target_environment)
                 
+                # Extract rules for source and target environments
+                all_rules = feature.get("rules", [])
+                source_rules = self._filter_rules_by_environment(all_rules, source_environment)
+                target_rules = self._filter_rules_by_environment(all_rules, target_environment)
+                
                 # Determine comparison status
                 comparison = self._compare_flag(
                     feature_key,
@@ -71,7 +76,9 @@ class ComparisonService:
                     target_env_config,
                     source_environment,
                     target_environment,
-                    draft
+                    draft,
+                    source_rules,
+                    target_rules
                 )
                 
                 comparisons.append(comparison)
@@ -83,6 +90,25 @@ class ComparisonService:
             logger.error(f"Error comparing environments: {e}")
             raise
     
+    def _filter_rules_by_environment(self, all_rules: List[Dict[str, Any]], environment: str) -> List[Dict[str, Any]]:
+        """
+        Filter rules to only include those that apply to the specified environment.
+        
+        Args:
+            all_rules: All rules from the feature
+            environment: Target environment name
+            
+        Returns:
+            Filtered list of rules that apply to the environment
+        """
+        filtered_rules = []
+        for rule in all_rules:
+            rule_envs = rule.get("environments", [])
+            # Include rule if it has no environment restriction or applies to target environment
+            if not rule_envs or environment in rule_envs or rule.get("allEnvironments", False):
+                filtered_rules.append(rule)
+        return filtered_rules
+    
     def _compare_flag(
         self,
         key: str,
@@ -91,7 +117,9 @@ class ComparisonService:
         target_config: Dict[str, Any],
         source_env_name: str,
         target_env_name: str,
-        draft: bool = False
+        draft: bool = False,
+        source_rules: List[Dict[str, Any]] = None,
+        target_rules: List[Dict[str, Any]] = None
     ) -> FlagComparison:
         """
         Compare a single flag between source and target environments.
@@ -104,6 +132,8 @@ class ComparisonService:
             source_env_name: Source environment name
             target_env_name: Target environment name
             draft: Whether the flag is in draft status
+            source_rules: Rules for source environment
+            target_rules: Rules for target environment
             
         Returns:
             FlagComparison with comparison result
@@ -112,6 +142,9 @@ class ComparisonService:
         target_enabled = target_config.get("enabled", False) if target_config else False
         source_value = source_config.get("defaultValue") if source_config else None
         target_value = target_config.get("defaultValue") if target_config else None
+        
+        # Compare rules
+        rules_different = self._compare_rules(source_rules, target_rules, source_env_name, target_env_name)
         
         # Determine status
         if not source_config and not target_config:
@@ -126,7 +159,7 @@ class ComparisonService:
         elif draft:
             # Flag is in draft - treat as different regardless of values
             status = ComparisonStatus.DIFFERENT
-        elif source_enabled == target_enabled and source_value == target_value:
+        elif source_enabled == target_enabled and source_value == target_value and not rules_different:
             # Flags are in sync
             status = ComparisonStatus.IN_SYNC
         else:
@@ -141,5 +174,55 @@ class ComparisonService:
             target_value=target_value,
             source_enabled=source_enabled,
             target_enabled=target_enabled,
-            draft=draft
+            draft=draft,
+            source_rules=source_rules,
+            target_rules=target_rules,
+            rules_different=rules_different
         )
+    
+    def _compare_rules(
+        self,
+        source_rules: List[Dict[str, Any]],
+        target_rules: List[Dict[str, Any]],
+        source_env_name: str,
+        target_env_name: str
+    ) -> bool:
+        """
+        Compare rules between source and target environments.
+        
+        Args:
+            source_rules: Rules for source environment
+            target_rules: Rules for target environment
+            source_env_name: Source environment name
+            target_env_name: Target environment name
+            
+        Returns:
+            True if rules are different, False otherwise
+        """
+        if not source_rules and not target_rules:
+            return False  # Both have no rules - same
+        
+        if not source_rules or not target_rules:
+            return True  # One has rules, other doesn't - different
+        
+        if len(source_rules) != len(target_rules):
+            return True  # Different number of rules - different
+        
+        # Compare each rule
+        for i, (source_rule, target_rule) in enumerate(zip(source_rules, target_rules)):
+            # Filter rules by environment before comparing
+            source_rule_envs = source_rule.get("environments", [])
+            target_rule_envs = target_rule.get("environments", [])
+            
+            # Check if rules apply to their respective environments
+            source_applies = not source_rule_envs or source_env_name in source_rule_envs or source_rule.get("allEnvironments", False)
+            target_applies = not target_rule_envs or target_env_name in target_rule_envs or target_rule.get("allEnvironments", False)
+            
+            # Compare key rule fields
+            if (source_rule.get("type") != target_rule.get("type") or
+                source_rule.get("condition") != target_rule.get("condition") or
+                source_rule.get("value") != target_rule.get("value") or
+                source_rule.get("enabled") != target_rule.get("enabled")):
+                return True
+        
+        return False

@@ -45,6 +45,7 @@ class GrowthBookClient:
                 return response.json()
             
             except httpx.HTTPStatusError as e:
+                logger.info(f"HTTP error {e.response.status_code} for {method} {url}: {e.response.text}")
                 raise GrowthBookError(
                     message=f"HTTP error: {e.response.status_code}",
                     status_code=e.response.status_code,
@@ -252,20 +253,46 @@ class GrowthBookClient:
         # Get current feature state
         current_feature = await self._request("GET", f"/v2/features/{feature_id}")
         
+        # Extract the feature data from the response (GrowthBook wraps it in a "feature" key)
+        if "feature" in current_feature:
+            current_feature = current_feature["feature"]
+        
         # Ensure environment exists
         if "environments" not in current_feature:
             current_feature["environments"] = {}
         if environment not in current_feature["environments"]:
             current_feature["environments"][environment] = {}
-        if "rules" not in current_feature["environments"][environment]:
-            current_feature["environments"][environment]["rules"] = []
         
-        # Add new rule
-        current_feature["environments"][environment]["rules"].append(rule_data)
+        # Remove definition string so GrowthBook uses rules array
+        if "definition" in current_feature["environments"][environment]:
+            del current_feature["environments"][environment]["definition"]
+        
+        # Add rule to global rules array with environment specification
+        if "rules" not in current_feature:
+            current_feature["rules"] = []
+        
+        # Add environment to the rule's environments array if not present
+        if "environments" not in rule_data:
+            rule_data["environments"] = []
+        if environment not in rule_data["environments"]:
+            rule_data["environments"].append(environment)
+        
+        current_feature["rules"].append(rule_data)
+        
+        # Filter the payload to only include editable fields that GrowthBook accepts
+        update_payload = {
+            "description": current_feature.get("description", ""),
+            "defaultValue": current_feature.get("defaultValue"),
+            "environments": current_feature.get("environments", {}),
+            "rules": current_feature.get("rules", []),
+            "prerequisites": current_feature.get("prerequisites", []),
+            "tags": current_feature.get("tags", []),
+            "customFields": current_feature.get("customFields", {})
+        }
         
         # Update feature with new rule
         logger.info(f"Adding rule to feature {feature_id} in environment {environment}")
-        response = await self._request("POST", f"/v2/features/{feature_id}", current_feature)
+        response = await self._request("POST", f"/v2/features/{feature_id}", update_payload)
         logger.info(f"Rule added successfully")
         return response
     

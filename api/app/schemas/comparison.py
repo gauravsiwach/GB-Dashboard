@@ -21,6 +21,9 @@ class FlagComparison(BaseModel):
     source_enabled: Optional[bool] = None
     target_enabled: Optional[bool] = None
     draft: bool = False
+    source_rules: Optional[List[Dict[str, Any]]] = None
+    target_rules: Optional[List[Dict[str, Any]]] = None
+    rules_different: bool = False
 
 
 class ComparisonRequest(BaseModel):

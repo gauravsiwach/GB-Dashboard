@@ -754,6 +754,11 @@ section {
   min-width: 80px;
 }
 
+.rules-cell {
+  position: relative;
+  overflow: visible !important;
+}
+
 .rule-count {
   font-weight: bold;
   color: #333;
@@ -770,7 +775,7 @@ section {
 .rule-indicator:hover::after {
   content: attr(title);
   position: absolute;
-  bottom: 100%;
+  bottom: 120%;
   left: 50%;
   transform: translateX(-50%);
   background-color: #333;
@@ -781,6 +786,7 @@ section {
   white-space: nowrap;
   z-index: 1000;
   pointer-events: none;
+  margin-bottom: 5px;
 }
 
 /* Rules Display Styles (POC - Phase 1) */
@@ -859,6 +865,350 @@ section {
   color: #888;
   font-style: italic;
   padding: 0.5rem;
+}
+
+/* Rule Editor Styles (Phase 2) */
+.rule-editor {
+  margin-top: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: #f9f9f9;
+}
+
+.rule-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.rule-editor-header h4 {
+  margin: 0;
+  color: #333;
+}
+
+.rule-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rule-editor-content {
+  margin-top: 0.5rem;
+}
+
+.rule-textarea {
+  width: 100% !important;
+  min-height: 200px !important;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  background-color: white;
+  color: #333;
+}
+
+.add-rule-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.add-rule-button:hover {
+  background-color: #45a049;
+}
+
+.validation-error {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #ffebee;
+  color: #c62828;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.rule-display {
+  background-color: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+/* Comparison Table Rules Styles */
+.rules-cell {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-width: 200px;
+  max-height: 100px;
+  overflow: auto;
+  background-color: #f9f9f9;
+  padding: 0.25rem;
+  border-radius: 3px;
+}
+
+.rules-cell.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.rules-cell.clickable:hover {
+  background-color: #e8f5e9;
+}
+
+.condition-cell {
+  max-width: 150px;
+  max-height: 80px;
+  overflow: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+}
+
+.condition-text {
+  padding: 0.1rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.condition-text:last-child {
+  border-bottom: none;
+}
+
+.rule-item {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.rule-item:last-child {
+  margin-bottom: 0;
+}
+
+.rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #eee;
+}
+
+.rule-status {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+}
+
+.rule-status.enabled {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.rule-status.disabled {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.rule-details {
+  font-size: 0.7rem;
+}
+
+.rule-details div {
+  margin-bottom: 0.15rem;
+}
+
+.rule-details div:last-child {
+  margin-bottom: 0;
+}
+
+.rule-details strong {
+  color: #555;
+}
+
+.rule-summary {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.rule-summary:last-child {
+  border-bottom: none;
+}
+
+.rule-summary div {
+  margin-bottom: 0.1rem;
+}
+
+.rule-summary div:last-child {
+  margin-bottom: 0;
+}
+
+.rule-summary strong {
+  color: #555;
+  font-size: 0.7rem;
+}
+
+.rule-condition {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.rule-condition:last-child {
+  border-bottom: none;
+}
+
+.comparison-table .no-rules {
+  color: #999;
+  font-style: italic;
+}
+
+/* Value Popup Styles */
+.value-button {
+  background: none;
+  border: none;
+  color: #333;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #999;
+}
+
+.value-button:hover {
+  color: #0066cc;
+  text-decoration-color: #0066cc;
+}
+
+.value-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.value-popup-modal {
+  background-color: white;
+  border-radius: 8px;
+  max-width: 600px;
+  max-height: 80vh;
+  width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.value-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.value-popup-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.value-popup-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.value-popup-close:hover {
+  color: #333;
+}
+
+.value-popup-content {
+  padding: 1rem;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.value-popup-content pre {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: #f9f9f9;
+  padding: 0.75rem;
+  border-radius: 4px;
+}
+
+.rules-popup-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rules-popup-display .rule-item {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.rules-popup-display .rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.rules-popup-display .rule-status {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+}
+
+.rules-popup-display .rule-details {
+  font-size: 0.9rem;
+}
+
+.rules-popup-display .rule-details div {
+  margin-bottom: 0.25rem;
+}
+
+.rules-popup-display .rule-details div:last-child {
+  margin-bottom: 0;
+}
+
+.rules-popup-display .rule-details strong {
+  color: #555;
 }
 
 .modal-actions {

@@ -128,6 +128,15 @@ class PromotionService:
                     message=f"Flag not configured in source environment {source_environment}, skipping promotion"
                 )
             
+            # Extract rules for source environment
+            all_rules = feature_data.get("rules", [])
+            source_rules = self._filter_rules_by_environment(all_rules, source_environment)
+            
+            # Copy rules to target environment
+            if source_rules:
+                logger.info(f"Copying {len(source_rules)} rules from {source_environment} to {target_environment}")
+                await self._copy_rules_to_environment(feature_id, source_rules, target_environment)
+            
             # Enable the feature in target environment (copy from source)
             logger.info(f"Enabling feature {feature_id} in target environment {target_environment}")
             
@@ -154,3 +163,44 @@ class PromotionService:
                 message=f"Failed to promote {key}",
                 error=str(e)
             )
+    
+    def _filter_rules_by_environment(self, all_rules: List[Dict[str, Any]], environment: str) -> List[Dict[str, Any]]:
+        """
+        Filter rules to only include those that apply to the specified environment.
+        
+        Args:
+            all_rules: All rules from the feature
+            environment: Target environment name
+            
+        Returns:
+            Filtered list of rules that apply to the environment
+        """
+        filtered_rules = []
+        for rule in all_rules:
+            rule_envs = rule.get("environments", [])
+            # Include rule if it has no environment restriction or applies to target environment
+            if not rule_envs or environment in rule_envs or rule.get("allEnvironments", False):
+                filtered_rules.append(rule)
+        return filtered_rules
+    
+    async def _copy_rules_to_environment(
+        self,
+        feature_id: str,
+        rules: List[Dict[str, Any]],
+        target_environment: str
+    ):
+        """
+        Copy rules to target environment, preserving order and structure.
+        
+        Args:
+            feature_id: GrowthBook feature ID
+            rules: Rules to copy
+            target_environment: Target environment name
+        """
+        for rule in rules:
+            # Update rule to apply to target environment
+            updated_rule = rule.copy()
+            updated_rule["environments"] = [target_environment]
+            
+            # Add the rule to the target environment
+            await self.gb_client.add_rule(feature_id, target_environment, updated_rule)

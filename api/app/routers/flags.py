@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
+import json
 from typing import Optional
 from app.db import get_db
 from app.models import Flag, Market
@@ -716,6 +717,91 @@ async def add_rule(flag_id: int, rule_data: dict, environment: str = Query(...),
         raise
     except Exception as e:
         logger.error(f"Error adding rule: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/{flag_id}/rules")
+async def update_rules(flag_id: int, rules_data: dict, environment: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """
+    Update all rules for a flag in a specific environment.
+    Replaces existing rules with the new set of rules.
+    """
+    try:
+        rules = rules_data.get("rules", [])
+        logger.info(f"Updating {len(rules)} rules for flag {flag_id} in environment {environment}")
+        
+        # Validate all rules
+        for i, rule in enumerate(rules):
+            is_valid, error = RuleValidator.validate_rule(rule)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"Invalid rule at index {i}: {error}")
+        
+        # Get the flag from database
+        result = await db.execute(select(Flag).where(Flag.id == flag_id))
+        db_flag = result.scalar_one_or_none()
+        
+        if not db_flag:
+            raise HTTPException(status_code=404, detail="Flag not found")
+        
+        # Initialize GrowthBook client
+        gb_client = GrowthBookClient()
+        
+        # Get current feature from GrowthBook
+        current_feature = await gb_client._request("GET", f"/v2/features/{db_flag.growthbook_feature_id}")
+        
+        # Extract the feature data from the response (GrowthBook wraps it in a "feature" key)
+        if "feature" in current_feature:
+            current_feature = current_feature["feature"]
+        
+        # Ensure environment exists
+        if "environments" not in current_feature:
+            current_feature["environments"] = {}
+        if environment not in current_feature["environments"]:
+            current_feature["environments"][environment] = {}
+        
+        # Update rules for the environment
+        # According to GrowthBook API docs, rules should be in the global rules array
+        # with an "environments" array to specify which environments they apply to
+        current_feature["rules"] = rules
+        
+        # Ensure environment exists and is enabled
+        if "environments" not in current_feature:
+            current_feature["environments"] = {}
+        if environment not in current_feature["environments"]:
+            current_feature["environments"][environment] = {}
+        if "definition" in current_feature["environments"][environment]:
+            del current_feature["environments"][environment]["definition"]
+        
+        # Filter the payload to only include editable fields that GrowthBook accepts
+        # Remove read-only metadata fields that cause API errors
+        update_payload = {
+            "description": current_feature.get("description", ""),
+            "defaultValue": current_feature.get("defaultValue"),
+            "environments": current_feature.get("environments", {}),
+            "rules": current_feature.get("rules", []),
+            "prerequisites": current_feature.get("prerequisites", []),
+            "tags": current_feature.get("tags", []),
+            "customFields": current_feature.get("customFields", {})
+        }
+        
+        # Update feature in GrowthBook
+        logger.info(f"Updating feature {db_flag.growthbook_feature_id} with new rules for environment {environment}")
+        response = await gb_client._request("POST", f"/v2/features/{db_flag.growthbook_feature_id}", update_payload)
+        logger.info(f"Rules updated successfully")
+        
+        return {
+            "success": True,
+            "message": f"Updated {len(rules)} rules successfully",
+            "data": response
+        }
+    
+    except GrowthBookError as e:
+        logger.error(f"GrowthBook API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update rules: {e.message}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating rules: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
